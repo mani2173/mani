@@ -1,0 +1,16 @@
+txn_id,account_id,txn_ts,merchant,channel,city,home_city,amount,times_avg,tod
+145120,83,2026-09-01 04:36:30,TechZone Electronics,ONLINE,Online,Pune,102863.0,111.9,night
+79360,237,2026-04-15 01:48:09,TechZone Electronics,ONLINE,Online,Kolkata,89467.0,105.4,night
+120030,21,2026-07-10 00:18:52,TechZone Electronics,ONLINE,Online,Ahmedabad,93273.0,100.0,night
+74295,8,2026-04-05 04:03:40,TechZone Electronics,ONLINE,Online,Bengaluru,78932.0,90.5,night
+16159,245,2025-12-04 03:46:35,TechZone Electronics,ONLINE,Online,Chennai,77742.0,90.2,night
+111130,181,2026-06-21 00:36:46,TechZone Electronics,ONLINE,Online,Pune,74440.0,85.1,night
+53146,218,2026-02-19 02:26:26,TechZone Electronics,ONLINE,Online,Hyderabad,80649.0,83.1,night
+40177,30,2026-01-23 02:14:30,TechZone Electronics,ONLINE,Online,Chennai,88152.0,80.7,night
+28722,63,2025-12-30 03:46:48,TechZone Electronics,ONLINE,Online,Delhi,63977.0,78.3,night
+66553,108,2026-03-19 04:15:00,Unknown Merchant,CARD,Pune,Bengaluru,50000.0,63.9,night
+15189,90,2025-12-02 04:25:00,Unknown Merchant,CARD,Kolkata,Pune,50000.0,63.6,night
+98598,112,2026-05-26 01:39:00,Unknown Merchant,CARD,Delhi,Kolkata,50000.0,63.4,night
+29480,20,2026-01-01 02:37:00,Unknown Merchant,CARD,Chennai,Ahmedabad,50000.0,59.8,night
+53973,62,2026-02-21 02:40:00,Unknown Merchant,CARD,Pune,Mumbai,50000.0,59.7,night
+29481,171,2026-01-01 04:26:00,Unknown Merchant,CARD,Hyderabad,Delhi,50000.0,59.0,night

@@ -1,0 +1,4 @@
+rule,flagged_txns,accounts
+CARD_TESTING,119,15
+LARGE_ANOMALY,29,24
+GEO_IMPOSSIBLE,19,18

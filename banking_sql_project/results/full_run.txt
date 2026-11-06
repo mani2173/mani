@@ -1,0 +1,422 @@
+
+==============================================================================
+01_fraud_detection.sql
+==============================================================================
+
+[1] Rule 1 - Card testing: >=5 small online debits (<500) within 10 min, per account
+  account_id | first_burst         | max_burst_size | days_with_bursts
+  -----------+---------------------+----------------+-----------------
+  21         | 2026-07-10 00:12:00 | 8              | 1               
+  245        | 2025-12-04 03:40:00 | 8              | 1               
+  263        | 2026-07-20 01:22:00 | 8              | 1               
+  272        | 2026-01-02 02:17:00 | 8              | 1               
+  286        | 2026-01-30 05:57:00 | 8              | 1               
+  8          | 2026-04-05 03:57:00 | 7              | 1               
+  63         | 2025-12-30 03:40:00 | 7              | 1               
+  83         | 2026-09-01 04:30:00 | 7              | 1               
+  237        | 2026-04-15 01:41:00 | 7              | 1               
+  30         | 2026-01-23 02:09:00 | 6              | 1               
+  104        | 2026-02-12 01:10:00 | 6              | 1               
+  121        | 2026-10-29 05:20:00 | 6              | 1               
+  181        | 2026-06-21 00:31:00 | 6              | 1               
+  218        | 2026-02-19 02:20:00 | 6              | 1               
+  278        | 2026-05-10 05:21:00 | 6              | 1               
+
+[2] Rule 2 - Amount anomaly: debit >= 8x account's typical debit, >= 50,000, AND (00-05h OR outside home city)
+  txn_id | account_id | txn_ts              | merchant             | channel | city      | home_city | amount   | times_avg | tod  
+  -------+------------+---------------------+----------------------+---------+-----------+-----------+----------+-----------+------
+  145120 | 83         | 2026-09-01 04:36:30 | TechZone Electronics | ONLINE  | Online    | Pune      | 102863.0 | 111.9     | night
+  79360  | 237        | 2026-04-15 01:48:09 | TechZone Electronics | ONLINE  | Online    | Kolkata   | 89467.0  | 105.4     | night
+  120030 | 21         | 2026-07-10 00:18:52 | TechZone Electronics | ONLINE  | Online    | Ahmedabad | 93273.0  | 100.0     | night
+  74295  | 8          | 2026-04-05 04:03:40 | TechZone Electronics | ONLINE  | Online    | Bengaluru | 78932.0  | 90.5      | night
+  16159  | 245        | 2025-12-04 03:46:35 | TechZone Electronics | ONLINE  | Online    | Chennai   | 77742.0  | 90.2      | night
+  111130 | 181        | 2026-06-21 00:36:46 | TechZone Electronics | ONLINE  | Online    | Pune      | 74440.0  | 85.1      | night
+  53146  | 218        | 2026-02-19 02:26:26 | TechZone Electronics | ONLINE  | Online    | Hyderabad | 80649.0  | 83.1      | night
+  40177  | 30         | 2026-01-23 02:14:30 | TechZone Electronics | ONLINE  | Online    | Chennai   | 88152.0  | 80.7      | night
+  28722  | 63         | 2025-12-30 03:46:48 | TechZone Electronics | ONLINE  | Online    | Delhi     | 63977.0  | 78.3      | night
+  66553  | 108        | 2026-03-19 04:15:00 | Unknown Merchant     | CARD    | Pune      | Bengaluru | 50000.0  | 63.9      | night
+  15189  | 90         | 2025-12-02 04:25:00 | Unknown Merchant     | CARD    | Kolkata   | Pune      | 50000.0  | 63.6      | night
+  98598  | 112        | 2026-05-26 01:39:00 | Unknown Merchant     | CARD    | Delhi     | Kolkata   | 50000.0  | 63.4      | night
+  29480  | 20         | 2026-01-01 02:37:00 | Unknown Merchant     | CARD    | Chennai   | Ahmedabad | 50000.0  | 59.8      | night
+  53973  | 62         | 2026-02-21 02:40:00 | Unknown Merchant     | CARD    | Pune      | Mumbai    | 50000.0  | 59.7      | night
+  29481  | 171        | 2026-01-01 04:26:00 | Unknown Merchant     | CARD    | Hyderabad | Delhi     | 50000.0  | 59.0      | night
+
+[3] Rule 2 tuning - naive amount-only rule vs refined rule (false positives on legit big purchases)
+  version                | flagged | true_fraud | false_positives | precision_pct
+  -----------------------+---------+------------+-----------------+--------------
+  naive (amount only)    | 272     | 32         | 240             | 11.8         
+  refined (+ night/away) | 29      | 29         | 0               | 100.0        
+
+[4] Rule 3 - Geo-impossible: card txns in two different physical cities < 60 min apart
+  account_id | prev_city | this_city | prev_ts             | txn_ts              | minutes_apart | amount  
+  -----------+-----------+-----------+---------------------+---------------------+---------------+---------
+  202        | Hyderabad | Mumbai    | 2026-01-09 12:04:00 | 2026-01-09 12:28:00 | 24.0          | 28851.48
+  88         | Ahmedabad | Pune      | 2026-02-11 12:27:00 | 2026-02-11 12:45:00 | 18.0          | 33728.51
+  41         | Mumbai    | Chennai   | 2026-02-14 12:03:00 | 2026-02-14 12:15:00 | 12.0          | 28961.8 
+  73         | Pune      | Hyderabad | 2026-02-24 12:36:00 | 2026-02-24 13:01:00 | 25.0          | 27640.87
+  278        | Ahmedabad | Kolkata   | 2026-03-17 12:37:00 | 2026-03-17 12:49:00 | 12.0          | 16083.21
+  128        | Chennai   | Mumbai    | 2026-03-26 12:36:00 | 2026-03-26 12:54:00 | 18.0          | 11435.9 
+  62         | Mumbai    | Delhi     | 2026-03-30 12:12:00 | 2026-03-30 12:32:00 | 20.0          | 34582.96
+  272        | Mumbai    | Pune      | 2026-04-23 12:17:00 | 2026-04-23 12:38:00 | 21.0          | 26465.47
+  121        | Chennai   | Kolkata   | 2026-06-18 12:18:00 | 2026-06-18 12:34:00 | 16.0          | 21406.39
+  171        | Delhi     | Pune      | 2026-07-02 12:33:00 | 2026-07-02 12:50:00 | 17.0          | 29997.6 
+  171        | Pune      | Delhi     | 2026-07-02 12:50:00 | 2026-07-02 13:49:32 | 59.5          | 817.25  
+  103        | Kolkata   | Delhi     | 2026-07-07 12:29:00 | 2026-07-07 12:41:00 | 12.0          | 11390.79
+  175        | Ahmedabad | Mumbai    | 2026-07-22 12:20:00 | 2026-07-22 12:39:00 | 19.0          | 12413.86
+  218        | Hyderabad | Mumbai    | 2026-07-26 12:32:00 | 2026-07-26 12:52:00 | 20.0          | 29145.11
+  193        | Kolkata   | Delhi     | 2026-08-06 12:28:00 | 2026-08-06 12:39:00 | 11.0          | 10920.57
+
+[5] Combined flagged transactions (txn-level) with rule that fired
+  rule           | flagged_txns | accounts
+  ---------------+--------------+---------
+  CARD_TESTING   | 119          | 15      
+  LARGE_ANOMALY  | 29           | 24      
+  GEO_IMPOSSIBLE | 19           | 18      
+
+[6] Overall detection vs ground truth, by true fraud scenario (was the txn caught by ANY rule?)
+  scenario       | fraud_txns | caught | recall_pct
+  ---------------+------------+--------+-----------
+  CARD_TESTING   | 119        | 119    | 100.0     
+  GEO_IMPOSSIBLE | 18         | 18     | 100.0     
+  LARGE_ANOMALY  | 17         | 17     | 100.0     
+  ALL            | 154        | 154    | 100.0     
+
+[7] Overall precision - of all distinct flagged transactions, how many are truly fraud?
+  flagged_txns | true_fraud | false_positives | precision_pct
+  -------------+------------+-----------------+--------------
+  155          | 154        | 1               | 99.4         
+
+[8] Accounts ranked by fraud-risk score (distinct rules fired, flagged value)
+  account_id | full_name      | segment | rules_fired | flagged_txns | flagged_amount
+  -----------+----------------+---------+-------------+--------------+---------------
+  272        | Rahul Naidu    | Premium | 3           | 10           | 248688.64     
+  218        | Ravi Das       | Retail  | 3           | 8            | 191925.23     
+  263        | Vikram Rao     | Premium | 2           | 10           | 239150.92     
+  21         | Pooja Nair     | Retail  | 2           | 10           | 237966.32     
+  30         | Pooja Naidu    | Retail  | 2           | 8            | 227315.81     
+  83         | Aditya Naidu   | Retail  | 2           | 8            | 208511.65     
+  181        | Rahul Kumar    | Retail  | 2           | 8            | 200151.34     
+  237        | Aarav Gupta    | Retail  | 2           | 8            | 181134.34     
+  8          | Deepa Nair     | Retail  | 2           | 8            | 159493.62     
+  245        | Ravi Sharma    | Retail  | 2           | 9            | 157307.94     
+  104        | Ananya Naidu   | Retail  | 2           | 8            | 153357.15     
+  286        | Karthik Sharma | Retail  | 2           | 10           | 143628.84     
+  63         | Meera Patel    | Retail  | 2           | 8            | 129532.18     
+  62         | Sunita Chopra  | Retail  | 2           | 2            | 84582.96      
+  171        | Sunita Nair    | Retail  | 2           | 3            | 80814.85      
+
+==============================================================================
+02_monthly_activity.sql
+==============================================================================
+
+[1] Bank-wide monthly activity
+  month   | txns  | credit_txns | debit_txns | total_credits | total_debits | net_flow   | active_accounts
+  --------+-------+-------------+------------+---------------+--------------+------------+----------------
+  2025-11 | 14711 | 403         | 14308      | 46703772.0    | 26458648.0   | 20245124.0 | 311            
+  2025-12 | 14768 | 403         | 14365      | 47636687.0    | 26901530.0   | 20735157.0 | 311            
+  2026-01 | 14818 | 404         | 14414      | 47059325.0    | 27417775.0   | 19641550.0 | 311            
+  2026-02 | 13252 | 402         | 12850      | 47544532.0    | 26786104.0   | 20758428.0 | 311            
+  2026-03 | 14711 | 403         | 14308      | 46774516.0    | 27575822.0   | 19198694.0 | 311            
+  2026-04 | 14182 | 407         | 13775      | 48916589.0    | 27362164.0   | 21554425.0 | 311            
+  2026-05 | 14839 | 405         | 14434      | 47979729.0    | 27868573.0   | 20111156.0 | 311            
+  2026-06 | 14384 | 406         | 13978      | 48095042.0    | 27396836.0   | 20698206.0 | 311            
+  2026-07 | 14607 | 407         | 14200      | 47948303.0    | 27237908.0   | 20710395.0 | 311            
+  2026-08 | 14840 | 403         | 14437      | 46646298.0    | 27512654.0   | 19133643.0 | 311            
+  2026-09 | 14341 | 413         | 13928      | 48515476.0    | 27133404.0   | 21382072.0 | 311            
+  2026-10 | 14861 | 401         | 14460      | 47396515.0    | 28062682.0   | 19333833.0 | 311            
+
+[2] Month-over-month change in debit volume (LAG)
+  month   | debits     | prev_month | mom_pct
+  --------+------------+------------+--------
+  2025-11 | 26458648.0 |            |        
+  2025-12 | 26901530.0 | 26458648.0 | 1.7    
+  2026-01 | 27417775.0 | 26901530.0 | 1.9    
+  2026-02 | 26786104.0 | 27417775.0 | -2.3   
+  2026-03 | 27575822.0 | 26786104.0 | 2.9    
+  2026-04 | 27362164.0 | 27575822.0 | -0.8   
+  2026-05 | 27868573.0 | 27362164.0 | 1.9    
+  2026-06 | 27396836.0 | 27868573.0 | -1.7   
+  2026-07 | 27237908.0 | 27396836.0 | -0.6   
+  2026-08 | 27512654.0 | 27237908.0 | 1.0    
+  2026-09 | 27133404.0 | 27512654.0 | -1.4   
+  2026-10 | 28062682.0 | 27133404.0 | 3.4    
+
+[3] Monthly activity by channel (txn counts)
+  month   | upi  | card | online | netbanking | atm
+  --------+------+------+--------+------------+----
+  2025-11 | 5037 | 4220 | 3957   | 1023       | 474
+  2025-12 | 5081 | 4297 | 3885   | 1025       | 480
+  2026-01 | 5068 | 4300 | 3943   | 1025       | 482
+  2026-02 | 4522 | 3851 | 3451   | 1021       | 407
+  2026-03 | 5105 | 4253 | 3881   | 1022       | 450
+  2026-04 | 4814 | 4170 | 3689   | 1029       | 480
+  2026-05 | 5063 | 4385 | 3896   | 1027       | 468
+  2026-06 | 4939 | 4158 | 3802   | 1028       | 457
+  2026-07 | 5007 | 4277 | 3799   | 1029       | 495
+  2026-08 | 4995 | 4407 | 3918   | 1023       | 497
+  2026-09 | 4788 | 4300 | 3739   | 1035       | 479
+  2026-10 | 5096 | 4319 | 3932   | 1023       | 491
+
+[4] Account statement - monthly summary for one account (opening/closing balance)
+  account_id | month   | opening_balance | credits   | debits    | closing_balance | txns
+  -----------+---------+-----------------+-----------+-----------+-----------------+-----
+  15         | 2025-11 | 744455.93       | 787873.66 | 255141.83 | 1277187.76      | 53  
+  15         | 2025-12 | 1277187.76      | 993974.95 | 241622.52 | 2029540.19      | 44  
+  15         | 2026-01 | 2029540.19      | 719308.96 | 236391.43 | 2512457.72      | 62  
+  15         | 2026-02 | 2512457.72      | 910603.38 | 434253.53 | 2988807.57      | 58  
+  15         | 2026-03 | 2988807.57      | 485249.4  | 317503.96 | 3156553.01      | 56  
+  15         | 2026-04 | 3156553.01      | 827111.83 | 324342.2  | 3659322.64      | 68  
+  15         | 2026-05 | 3659322.64      | 822810.94 | 361557.58 | 4120576.0       | 47  
+  15         | 2026-06 | 4120576.0       | 646359.08 | 262912.48 | 4504022.6       | 55  
+  15         | 2026-07 | 4504022.6       | 473024.04 | 261724.87 | 4715321.77      | 50  
+  15         | 2026-08 | 4715321.77      | 945807.95 | 270137.47 | 5390992.25      | 58  
+  15         | 2026-09 | 5390992.25      | 826002.37 | 302208.51 | 5914786.11      | 55  
+  15         | 2026-10 | 5914786.11      | 554021.59 | 271287.02 | 6197520.68      | 51  
+
+[5] Dormant accounts - no activity in the last 60 days of the data
+  (no rows)
+
+==============================================================================
+03_spending_patterns.sql
+==============================================================================
+
+[1] Spend by category (share of total debits, excluding rent/EMI & utilities = discretionary view)
+  category        | txns  | total_spend | avg_ticket | pct_of_spend
+  ----------------+-------+-------------+------------+-------------
+  Rent/EMI        | 3726  | 132677836.0 | 35609.0    | 40.5        
+  Shopping        | 26771 | 68137970.0  | 2545.0     | 20.8        
+  Groceries       | 40946 | 32612163.0  | 796.0      | 10.0        
+  Cash Withdrawal | 5660  | 25826000.0  | 4563.0     | 7.9         
+  Fuel            | 15148 | 20103580.0  | 1327.0     | 6.1         
+  Dining          | 33807 | 16552509.0  | 490.0      | 5.1         
+  Travel          | 18931 | 11808399.0  | 624.0      | 3.6         
+  Utilities       | 3727  | 8711992.0   | 2338.0     | 2.7         
+  Healthcare      | 9472  | 6742766.0   | 712.0      | 2.1         
+  Entertainment   | 11269 | 4540883.0   | 403.0      | 1.4         
+
+[2] Average monthly spend by customer segment
+  segment  | customers | avg_monthly_spend | peak_monthly_spend
+  ---------+-----------+-------------------+-------------------
+  Business | 26        | 334701.0          | 729541.0          
+  Premium  | 46        | 175508.0          | 524708.0          
+  Retail   | 178       | 59207.0           | 201359.0          
+
+[3] Weekday vs weekend, and time-of-day spending profile
+  day_type | time_band           | txns  | avg_ticket | total_spend
+  ---------+---------------------+-------+------------+------------
+  Weekday  | 1 Night (0-6)       | 103   | 14789.0    | 1523293.0  
+  Weekday  | 2 Morning (6-12)    | 33054 | 3803.0     | 125709062.0
+  Weekday  | 3 Afternoon (12-18) | 46158 | 1302.0     | 60089497.0 
+  Weekday  | 4 Evening (18-24)   | 29976 | 1090.0     | 32672935.0 
+  Weekend  | 1 Night (0-6)       | 27    | 17019.0    | 459519.0   
+  Weekend  | 2 Morning (6-12)    | 18007 | 3270.0     | 58886152.0 
+  Weekend  | 3 Afternoon (12-18) | 25362 | 1215.0     | 30819926.0 
+  Weekend  | 4 Evening (18-24)   | 16770 | 1047.0     | 17553713.0 
+
+[4] Top 10 spenders and their favourite category
+  customer_id | full_name     | segment  | total_spend | top_category | top_cat_pct
+  ------------+---------------+----------+-------------+--------------+------------
+  118         | Ravi Singh    | Business | 3674250.0   | Shopping     | 42.5       
+  158         | Ravi Joshi    | Business | 3502632.0   | Shopping     | 40.6       
+  115         | Ishita Reddy  | Business | 3392487.0   | Shopping     | 41.1       
+  38          | Vivaan Das    | Business | 3141333.0   | Shopping     | 38.9       
+  214         | Karthik Gupta | Business | 3130963.0   | Shopping     | 33.6       
+  240         | Arjun Reddy   | Premium  | 2445439.0   | Shopping     | 56.6       
+  22          | Rahul Sharma  | Premium  | 2401835.0   | Shopping     | 54.9       
+  218         | Rahul Naidu   | Premium  | 2240033.0   | Shopping     | 49.4       
+  227         | Kavya Naidu   | Business | 2168908.0   | Shopping     | 48.7       
+  152         | Anil Joshi    | Premium  | 2161476.0   | Shopping     | 50.2       
+
+[5] Savings rate by segment (1 - debits/credits)
+  segment  | customers | savings_rate_pct | customers_overspending
+  ---------+-----------+------------------+-----------------------
+  Business | 26        | 61.7             | 0                     
+  Premium  | 46        | 32.7             | 1                     
+  Retail   | 178       | 18.4             | 22                    
+
+[6] Customer spend quartiles (NTILE) - how concentrated is spending?
+  quartile | customers | spend       | pct_of_total
+  ---------+-----------+-------------+-------------
+  1        | 63        | 188155391.0 | 57.4        
+  2        | 63        | 70312146.0  | 21.5        
+  3        | 62        | 37150042.0  | 11.3        
+  4        | 62        | 32096519.0  | 9.8         
+
+[7] Month-by-month category trend for the top 3 categories
+  month   | groceries | dining    | shopping 
+  --------+-----------+-----------+----------
+  2025-11 | 2744588.0 | 1398115.0 | 4863871.0
+  2025-12 | 2809103.0 | 1366621.0 | 5244327.0
+  2026-01 | 2696771.0 | 1343732.0 | 5925686.0
+  2026-02 | 2428948.0 | 1335224.0 | 6017042.0
+  2026-03 | 2719805.0 | 1433190.0 | 5873487.0
+  2026-04 | 2540407.0 | 1359363.0 | 5851564.0
+  2026-05 | 2754230.0 | 1418668.0 | 5931007.0
+  2026-06 | 2882275.0 | 1329373.0 | 5792213.0
+  2026-07 | 2787134.0 | 1399995.0 | 5555325.0
+  2026-08 | 2783176.0 | 1386933.0 | 5398080.0
+  2026-09 | 2755449.0 | 1363442.0 | 5754539.0
+  2026-10 | 2710278.0 | 1417853.0 | 5930829.0
+
+==============================================================================
+04_balance_trends.sql
+==============================================================================
+
+[1] Total bank balance at each month-end (sum of each account's last balance in month)
+  month   | accounts | total_balance | avg_balance
+  --------+----------+---------------+------------
+  2025-11 | 311      | 57668175.0    | 185428.0   
+  2025-12 | 311      | 78403332.0    | 252101.0   
+  2026-01 | 311      | 98044883.0    | 315257.0   
+  2026-02 | 311      | 118803311.0   | 382004.0   
+  2026-03 | 311      | 138002005.0   | 443736.0   
+  2026-04 | 311      | 159556430.0   | 513043.0   
+  2026-05 | 311      | 179667586.0   | 577709.0   
+  2026-06 | 311      | 200365792.0   | 644263.0   
+  2026-07 | 311      | 221076188.0   | 710856.0   
+  2026-08 | 311      | 240209831.0   | 772379.0   
+  2026-09 | 311      | 261591903.0   | 841132.0   
+  2026-10 | 311      | 280925736.0   | 903298.0   
+
+[2] Average month-end balance by segment
+  month   | retail   | premium   | business 
+  --------+----------+-----------+----------
+  2025-11 | 56146.0  | 299762.0  | 913061.0 
+  2025-12 | 65734.0  | 368839.0  | 1387871.0
+  2026-01 | 75032.0  | 438502.0  | 1828441.0
+  2026-02 | 88545.0  | 508553.0  | 2273879.0
+  2026-03 | 99464.0  | 579555.0  | 2686032.0
+  2026-04 | 110506.0 | 644319.0  | 3184555.0
+  2026-05 | 120516.0 | 716606.0  | 3630393.0
+  2026-06 | 132246.0 | 784478.0  | 4090708.0
+  2026-07 | 142162.0 | 856086.0  | 4557776.0
+  2026-08 | 152339.0 | 925986.0  | 4975181.0
+  2026-09 | 162823.0 | 997877.0  | 5459303.0
+  2026-10 | 172369.0 | 1066669.0 | 5889729.0
+
+[3] Accounts with the steepest balance decline (first vs last balance)
+  account_id | first_bal | last_bal | change    | change_pct
+  -----------+-----------+----------+-----------+-----------
+  297        | 368552.0  | 178600.0 | -189951.0 | -51.5     
+  251        | 373144.0  | 229032.0 | -144112.0 | -38.6     
+  29         | 110945.0  | 26960.0  | -83985.0  | -75.7     
+  113        | 88978.0   | 14717.0  | -74261.0  | -83.5     
+  79         | 115990.0  | 50385.0  | -65605.0  | -56.6     
+  104        | 61602.0   | 98.0     | -61504.0  | -99.8     
+  121        | 71725.0   | 11556.0  | -60169.0  | -83.9     
+  30         | 62575.0   | 4751.0   | -57824.0  | -92.4     
+  10         | 73763.0   | 16102.0  | -57661.0  | -78.2     
+  132        | 54616.0   | 4456.0   | -50160.0  | -91.8     
+
+[4] Growing vs shrinking accounts
+  trend          | accounts | avg_change
+  ---------------+----------+-----------
+  Growing        | 264      | 911897.0  
+  Shrinking/flat | 47       | -35193.0  
+
+[5] Low-balance risk - accounts whose balance fell below 5,000 and how often
+  account_id | segment | low_balance_txns | lowest_balance | first_seen         
+  -----------+---------+------------------+----------------+--------------------
+  71         | Retail  | 77               | 4.0            | 2026-01-30 08:20:21
+  52         | Retail  | 73               | 27.0           | 2026-01-01 21:17:42
+  145        | Retail  | 68               | 23.0           | 2025-11-29 12:30:48
+  104        | Retail  | 63               | -8328.0        | 2026-02-12 14:32:56
+  202        | Retail  | 53               | 44.0           | 2026-01-15 18:38:42
+  204        | Retail  | 49               | 106.0          | 2025-11-30 20:15:56
+  261        | Retail  | 49               | 4.0            | 2026-03-20 09:25:07
+  30         | Retail  | 46               | -66231.0       | 2026-01-23 02:14:30
+  218        | Retail  | 46               | -52337.0       | 2025-12-29 08:03:51
+  88         | Retail  | 29               | 63.0           | 2026-02-24 09:58:09
+
+[6] 30-day moving average balance for the busiest account
+  day        | end_of_day_balance | moving_avg_30d
+  -----------+--------------------+---------------
+  2026-10-30 | 6197521.0          | 6163451.0     
+  2026-10-28 | 6207607.0          | 6148721.0     
+  2026-10-27 | 6210284.0          | 6133723.0     
+  2026-10-26 | 6213107.0          | 6118690.0     
+  2026-10-25 | 6214874.0          | 6103890.0     
+  2026-10-24 | 6219187.0          | 6089365.0     
+  2026-10-22 | 6223267.0          | 6074819.0     
+  2026-10-21 | 6227250.0          | 6060395.0     
+  2026-10-19 | 6232515.0          | 6046170.0     
+  2026-10-18 | 6237312.0          | 6023843.0     
+
+==============================================================================
+05_high_value_transactions.sql
+==============================================================================
+
+[1] Threshold buckets - how many transactions fall in each value band
+  band                  | txns   | total_value
+  ----------------------+--------+------------
+  4 >= 2,00,000         | 949    | 236502338.0
+  3 1,00,000 - 2,00,000 | 1533   | 230507059.0
+  2 50,000 - 1,00,000   | 2537   | 170313418.0
+  1 10,000 - 50,000     | 4363   | 100653648.0
+  0 < 10,000            | 164932 | 160954420.0
+
+[2] Top 15 largest debits (with customer context)
+  txn_id | txn_ts              | full_name     | segment  | category | merchant          | channel    | city   | amount  
+  -------+---------------------+---------------+----------+----------+-------------------+------------+--------+---------
+  148402 | 2026-09-07 10:59:02 | Vivaan Das    | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 218724.0
+  103640 | 2026-06-06 09:09:51 | Ananya Patel  | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 214750.0
+  148434 | 2026-09-07 11:36:24 | Suresh Chopra | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 210599.0
+  104375 | 2026-06-07 10:55:04 | Suresh Chopra | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 209826.0
+  48573  | 2026-02-09 10:35:58 | Ananya Patel  | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 207070.0
+  48619  | 2026-02-09 11:27:19 | Aarav Mehta   | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 206471.0
+  46951  | 2026-02-06 11:33:32 | Suresh Chopra | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 204035.0
+  91162  | 2026-05-10 10:34:35 | Suresh Chopra | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 203860.0
+  162097 | 2026-10-06 09:44:34 | Suresh Chopra | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 203312.0
+  119641 | 2026-07-09 09:58:43 | Kavya Naidu   | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 203131.0
+  135167 | 2026-08-10 10:05:59 | Kavya Naidu   | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 202825.0
+  48572  | 2026-02-09 10:35:57 | Kavya Naidu   | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 199526.0
+  32604  | 2026-01-07 09:12:22 | Rahul Rao     | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 198376.0
+  3728   | 2025-11-08 10:47:46 | Rahul Rao     | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 197390.0
+  76863  | 2026-04-10 10:18:10 | Aarav Mehta   | Business | Rent/EMI | Landlord/Loan EMI | NETBANKING | Online | 197193.0
+
+[3] High-value (>= 50,000) transactions that are NOT regular salary/rent/business flows, by category
+  category        | txns | total_value | avg_value
+  ----------------+------+-------------+----------
+  Shopping        | 268  | 24036365.0  | 89688.0  
+  Cash Withdrawal | 4    | 217000.0    | 54250.0  
+
+[4] Share of high-value (>= 50,000) debits that are on the fraud-flag list
+  high_value_debits | flagged | pct_flagged
+  ------------------+---------+------------
+  272               | 32      | 11.8       
+
+[5] Customers with the most high-value activity (>= 50,000, any direction)
+  customer_id | full_name     | segment  | hv_txns | hv_total   | hv_debits | hv_credits
+  ------------+---------------+----------+---------+------------+-----------+-----------
+  214         | Karthik Gupta | Business | 124     | 24975624.0 | 27        | 97        
+  38          | Vivaan Das    | Business | 127     | 24288274.0 | 30        | 97        
+  118         | Ravi Singh    | Business | 128     | 23420218.0 | 35        | 93        
+  115         | Ishita Reddy  | Business | 125     | 18476267.0 | 29        | 96        
+  158         | Ravi Joshi    | Business | 124     | 17277555.0 | 30        | 94        
+  227         | Kavya Naidu   | Business | 72      | 14492556.0 | 20        | 52        
+  54          | Ananya Patel  | Business | 62      | 14162667.0 | 15        | 47        
+  85          | Aarav Mehta   | Business | 63      | 13561159.0 | 15        | 48        
+  249         | Suresh Chopra | Business | 62      | 13551313.0 | 15        | 47        
+  141         | Rahul Rao     | Business | 65      | 13410936.0 | 14        | 51        
+
+[6] Unusual hour - high-value (>= 25,000) debits made between 00:00 and 05:00
+  txn_id | txn_ts              | account_id | channel | merchant             | amount  
+  -------+---------------------+------------+---------+----------------------+---------
+  29927  | 2026-01-02 02:24:56 | 272        | ONLINE  | TechZone Electronics | 109791.0
+  145120 | 2026-09-01 04:36:30 | 83         | ONLINE  | TechZone Electronics | 102863.0
+  125024 | 2026-07-20 01:30:06 | 263        | ONLINE  | TechZone Electronics | 93592.0 
+  120030 | 2026-07-10 00:18:52 | 21         | ONLINE  | TechZone Electronics | 93273.0 
+  79360  | 2026-04-15 01:48:09 | 237        | ONLINE  | TechZone Electronics | 89467.0 
+  40177  | 2026-01-23 02:14:30 | 30         | ONLINE  | TechZone Electronics | 88152.0 
+  53146  | 2026-02-19 02:26:26 | 218        | ONLINE  | TechZone Electronics | 80649.0 
+  74295  | 2026-04-05 04:03:40 | 8          | ONLINE  | TechZone Electronics | 78932.0 
+  16159  | 2025-12-04 03:46:35 | 245        | ONLINE  | TechZone Electronics | 77742.0 
+  111130 | 2026-06-21 00:36:46 | 181        | ONLINE  | TechZone Electronics | 74440.0 
+  28722  | 2025-12-30 03:46:48 | 63         | ONLINE  | TechZone Electronics | 63977.0 
+  49812  | 2026-02-12 01:16:20 | 104        | ONLINE  | TechZone Electronics | 50776.0 
+  15189  | 2025-12-02 04:25:00 | 90         | CARD    | Unknown Merchant     | 50000.0 
+  19745  | 2025-12-11 02:37:00 | 30         | CARD    | Unknown Merchant     | 50000.0 
+  21260  | 2025-12-14 04:20:00 | 223        | CARD    | Unknown Merchant     | 50000.0 
+
+[7] AML-style structuring check - accounts with 3+ cash/ATM debits of 9,000-9,999 in a month
+  (no rows)

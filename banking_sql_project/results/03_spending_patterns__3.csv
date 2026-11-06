@@ -1,0 +1,9 @@
+day_type,time_band,txns,avg_ticket,total_spend
+Weekday,1 Night (0-6),103,14789.0,1523293.0
+Weekday,2 Morning (6-12),33054,3803.0,125709062.0
+Weekday,3 Afternoon (12-18),46158,1302.0,60089497.0
+Weekday,4 Evening (18-24),29976,1090.0,32672935.0
+Weekend,1 Night (0-6),27,17019.0,459519.0
+Weekend,2 Morning (6-12),18007,3270.0,58886152.0
+Weekend,3 Afternoon (12-18),25362,1215.0,30819926.0
+Weekend,4 Evening (18-24),16770,1047.0,17553713.0

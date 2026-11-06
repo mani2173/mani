@@ -1,0 +1,11 @@
+customer_id,full_name,segment,hv_txns,hv_total,hv_debits,hv_credits
+214,Karthik Gupta,Business,124,24975624.0,27,97
+38,Vivaan Das,Business,127,24288274.0,30,97
+118,Ravi Singh,Business,128,23420218.0,35,93
+115,Ishita Reddy,Business,125,18476267.0,29,96
+158,Ravi Joshi,Business,124,17277555.0,30,94
+227,Kavya Naidu,Business,72,14492556.0,20,52
+54,Ananya Patel,Business,62,14162667.0,15,47
+85,Aarav Mehta,Business,63,13561159.0,15,48
+249,Suresh Chopra,Business,62,13551313.0,15,47
+141,Rahul Rao,Business,65,13410936.0,14,51
